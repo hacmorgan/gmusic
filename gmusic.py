@@ -18,9 +18,9 @@ autoRepeat = False
 
 # Check whether this is the first time the program has been run by searching the directory for the log file
 fileExists = False
-fileList = listdir("/home/hamish/bin/gmusic")
+fileList = listdir("/home/hamish/src/gmusic")
 for file in fileList:
-    if file.find('gmusiclog') != -1:
+    if file.find('.gmusiclog') != -1:
         fileExists = True
         break
 
@@ -41,7 +41,7 @@ if fileExists == False:
         # print(devID)
 
     mc.oauth_login(devID)
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'w') 
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'w') 
     log.write(devID + '\n')
     x = datetime.datetime.now()
     timeString = str(x.day) + '/' + str(x.month) + '/' + str(x.year) + '  ' + str(x.hour) + ':' + str(x.minute) + ':' + str(x.second) + '.' + str(x.microsecond)
@@ -51,7 +51,7 @@ else:
     # Log file exists, we will check whether the user has requested autorepeat
     print()
     print('This is not the first time this program has been run in this folder, performing login.' + '\n')
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'r')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'r')
 
     # Get device ID
     devID = log.readline().strip()
@@ -70,7 +70,7 @@ else:
     mc.oauth_login(devID)
     x = datetime.datetime.now()
     timeString = str(x.day) + '/' + str(x.month) + '/' + str(x.year) + '  ' + str(x.hour) + ':' + str(x.minute) + ':' + str(x.second) + '.' + str(x.microsecond)
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'a')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'a')
     log.write('Login performed at ' + timeString + '\n')
     log.close()
 
@@ -95,7 +95,7 @@ for n in allPlaylists:
 if desiredPlaylistIndex != -1:
     # Playlist exists, so we check to see if it has also been reversed
     # We also cache the playlist name so that it can be automatically re-reversed next time
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'a')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'a')
     log.write('PLAYLIST: ' + desiredPlaylist + '\n')
     log.close()
     
