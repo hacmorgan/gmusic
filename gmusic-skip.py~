@@ -41,7 +41,7 @@ if fileExists == False:
         # print(devID)
 
     mc.oauth_login(devID)
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'w') 
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'w') 
     log.write(devID + '\n')
     x = datetime.datetime.now()
     timeString = str(x.day) + '/' + str(x.month) + '/' + str(x.year) + '  ' + str(x.hour) + ':' + str(x.minute) + ':' + str(x.second) + '.' + str(x.microsecond)
@@ -51,7 +51,7 @@ else:
     # Log file exists, we will check whether the user has requested autorepeat
     print()
     print('This is not the first time this program has been run in this folder, performing login.' + '\n')
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'r')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'r')
 
     # Get device ID
     devID = log.readline().strip()
@@ -70,7 +70,7 @@ else:
     mc.oauth_login(devID)
     x = datetime.datetime.now()
     timeString = str(x.day) + '/' + str(x.month) + '/' + str(x.year) + '  ' + str(x.hour) + ':' + str(x.minute) + ':' + str(x.second) + '.' + str(x.microsecond)
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'a')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'a')
     log.write('Login performed at ' + timeString + '\n')
     log.close()
 
@@ -95,114 +95,58 @@ for n in allPlaylists:
 if desiredPlaylistIndex != -1:
     # Playlist exists, so we check to see if it has also been reversed
     # We also cache the playlist name so that it can be automatically re-reversed next time
-    log = open('/home/hamish/bin/gmusic/gmusiclog.txt', 'a')
+    log = open('/home/hamish/src/gmusic/.gmusiclog.txt', 'a')
     log.write('PLAYLIST: ' + desiredPlaylist + '\n')
     log.close()
     
     if reversedPlaylistIndex != -1:
-        # Playlist has been reversed, we will update the reverse
-        print('The ' + desiredPlaylist + ' playlist has been reversed, updating the reverse.')        
+        # Playlist has been reversed, we delete the old one before proceeding
+        print('The ' + desiredPlaylist + ' playlist has been reversed, updating it now') 
+        mc.delete_playlist(reversedID)
+        
     else:
         print('The ' + desiredPlaylist + ' playlist has not been reversed, creating the reverse now.')
-            
-    # Get full contents
+        
+    
     fullContents = mc.get_all_user_playlist_contents()
     for n in fullContents:
         if n['name'] == desiredPlaylist:
             trackDict = n['tracks']
             numSongs = len(trackDict)
-        elif n['name'] == reversedPlaylist:
+        if n['name'] == reversedPlaylist:
             reversedTrackDict = n['tracks']
-            reversedNumSongs = len(reversedTrackDict)
 
-    # Loop backwards through the original playlist. 
-    # If the song does not exist in the playlist:
-        # Add it to the playlist in the right spot
-    # If the song does exist in the playlist:
-        # Delete all the songs before it
-        # Move back a song in the original playlist
-        # Move forward a song in the reversed playlist
-
-    numMatchesTitleAlbumArtist = 0
-
-    numMatchesStoreID = 0
-    numMatchesTrackID = 0
-    numMatchesBothIDs = 0
-
-    x = 0
-
-
-    for i in range(numSongs-1,-1):
-
-        # Here we have to keep incrementing i intul the playlists are not equal              
-        subOrigDict = origDict['track']
-        subRevDict = revDict['track']
-
-        if subOrigDict
+    i = -1
+    
+    while numSongs > 0:
+        numSongs -= 1
+        i += 1
+        dicto = trackDict[numSongs]
+        revDicto = reversedTrackDict[i]
+        
         try:
-            subOrigDict = origDict['track']
-            for j in range(reversedNumSongs):
-                revDict = reversedTrackDict[j]
-                try:
-                    subRevDict = revDict['track']
-                    if subOrigDict['title'] == subRevDict['title'] and \
-                       subOrigDict['album'] == subRevDict['album'] and \
-                       subOrigDict['artist'] == subRevDict['artist']:
-                        numMatchesTitleAlbumArtist += 1
-                    if subOrigDict['storeId'] == subRevDict['storeId']:
-                        numMatchesStoreID += 1
-                        numMatchesBothIDs += 1
-                except Exception:
-                    pass
-        
-        # If there is no subdict
-        except Exception:
-            for j in range(reversedNumSongs):
-                try:
-                    subRevDict = revDict['track']
-                except Exception:
-                    print(revDict)
-                    if origDict['trackId'] == revDict['trackId']:
-                        numMatchesTrackID += 1
-                        numMatchesBothIDs += 1
+            subDict = dicto['track']
+            try:
+                subRevDict = revDicto['track']
+                if subDict['storeId'] == subRevDict['storeId']:
+                    break
+            except:
+                pass
 
-
-    print('\n\n\n')
-    print(f'Number of matches based on song, artist, album: {numMatchesTitleAlbumArtist}')
-    print(f'Number of matches based on store ID: {numMatchesStoreID}')
-    print(f'Number of matches based on track ID: {numMatchesTrackID}')
-    print(f'Number of matches based on both IDs: {numMatchesBothIDs}')
-        
-
-        # if i == 25 or i == 50:
-        #     print(origDict)
-        #     print()
-        
-        
-
+            ##############
+            # UP TO HERE #
+            ##############
             
-
-
-
-
-    # # Loop through original playlist and modify  
-    # while numSongs > 0:
-    #     numSongs -= 1
-    #     dicto = trackDict[numSongs]
-    #     try:
-    #         subDict = dicto['track']
-    #         print(str(numSongs+1) + ' - ' + subDict['title'])
-
-    #         mc.add_songs_to_playlist(reversedID,subDict['storeId'])
-    #     except:
-    #         print()
-    #         print('Error adding track no. %d the usual way, trying a backup method' % numSongs)
-    #         try:
-    #             mc.add_songs_to_playlist(reversedID,dicto['trackId'])
-    #             print('Backup method worked! Song no. %d added successfully.' % numSongs)
-    #         except:
-    #             print('That didn\'t work either :(')
-    #         print()
+            
+        except:
+            print()
+            print('Error adding track no. %d the usual way, trying a backup method' % numSongs)
+            try:
+                mc.add_songs_to_playlist(reversedID,dicto['trackId'])
+                print('Backup method worked! Song no. %d added successfully.' % numSongs)
+            except:
+                print('That didn\'t work either :(')
+            print()
 
     
 else:
