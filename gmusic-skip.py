@@ -105,7 +105,7 @@ if desiredPlaylistIndex != -1:
         mc.delete_playlist(reversedID)
         
     else:
-        print('The ' + desiredPlaylist + ' playlist has not been reversed, creating the reverse now.')
+        exit()
         
     
     fullContents = mc.get_all_user_playlist_contents()
@@ -134,19 +134,19 @@ if desiredPlaylistIndex != -1:
                 pass
 
         except:
-            
+            pass
                 
-            
-        except:
-            print()
-            print('Error adding track no. %d the usual way, trying a backup method' % numSongs)
-            try:
-                mc.add_songs_to_playlist(reversedID,dicto['trackId'])
-                print('Backup method worked! Song no. %d added successfully.' % numSongs)
-            except:
-                print('That didn\'t work either :(')
-            print()
+        print(i)   
+               #    print()
+        #    print('Error adding track no. %d the usual way, trying a backup method' % numSongs)
+        #    try:
+        #        mc.add_songs_to_playlist(reversedID,dicto['trackId'])
+        #        print('Backup method worked! Song no. %d added successfully.' % numSongs)
+        #    except:
+        #        print('That didn\'t work either :(')
+        #    print()
 
+    
     
 else:
     # No such playlist exists
