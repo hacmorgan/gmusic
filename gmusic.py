@@ -6,7 +6,7 @@ import datetime
 import time
 import argparse
 
-def reverseplaylist(playlist_name = '', repeat = False):
+def reverseplaylist(playlist_name = '', repeat = False, quick = False):
     mc = Mobileclient()
     mc.__init__()
 
@@ -14,9 +14,10 @@ def reverseplaylist(playlist_name = '', repeat = False):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     
     # Check whether this is the first time the program has been run by searching the directory for the log file
-    fileList = os.listdir(dir_path)
-    if '.gmusiclog.txt' not in fileList:
-        # No log file means not run
+    file_list = os.listdir(dir_path)
+    
+    # No log file means not run
+    if '.gmusiclog.txt' not in file_list:
         print('\n' +
               'This is the first time this program has been run in this folder.' +
               '\n' +
@@ -48,27 +49,28 @@ def reverseplaylist(playlist_name = '', repeat = False):
                            str(x.microsecond) )
             log.write('Initial authentication performed at ' + timeString + '\n')
 
+    # Log file exists, we will check whether the user has requested autorepeat
     else:
-        # Log file exists, we will check whether the user has requested autorepeat
         print('\n' +
               'This is not the first time this program has been run in this folder' +
               '\n' +
               'performing login.' +
               '\n')
 
-        # Open the logfile
+        # Open the logfile to read device id and previous playlists
         with open(dir_path + '/.gmusiclog.txt', 'r') as log:
             # Get device ID
             devID = log.readline().strip()
-            # Perform login
-            mc.oauth_login(devID)
             # Look for the playlist name from the bottom of the list
             contents = log.read()
-            playlistLocation = contents.rfind('PLAYLIST')
-            if playlistLocation != -1:
-                # Define end of playlist to make defining desired playlist a little cleaner
-                endOfPlaylist = contents.find('\n', playlistLocation, len(contents))
-                desired_playlist = contents[playlistLocation+10:endOfPlaylist]
+            
+        # Perform login
+        mc.oauth_login(devID)
+        playlistLocation = contents.rfind('PLAYLIST')
+        if playlistLocation != -1:
+            # Define end of playlist to make defining desired playlist a little cleaner
+            endOfPlaylist = contents.find('\n', playlistLocation, len(contents))
+            desired_playlist = contents[playlistLocation+10:endOfPlaylist]
 
 
         with open(dir_path + '/.gmusiclog.txt', 'a+') as log:
@@ -95,123 +97,168 @@ def reverseplaylist(playlist_name = '', repeat = False):
 
     # Check to see whether the desired and reversed playlists exist yet
     allPlaylists = mc.get_all_playlists()
-    desired_playlistIndex = -1
+    desired_playlist_index = -1
     reversed_playlist_index = -1
     for n in allPlaylists:
         if n['name'] == reversed_playlist:
             reversed_playlist_index = n
             reversedID = n['id']
         elif n['name'] == desired_playlist:
-            desired_playlistIndex = n
+            desired_playlist_index = n
             desiredID = n['id']
 
-    # Playlist exists, so we check to see if it has also been reversed
-    if desired_playlistIndex != -1:
-        # We also cache the playlist name so that it can be automatically re-reversed next time
+    # Desired playlist exists, so we check to see if it has also been reversed
+    if desired_playlist_index != -1:
+        # We cache the playlist name so that it can be automatically re-reversed next time
         with open(dir_path + '/.gmusiclog.txt', 'a+') as log:
             log.write('PLAYLIST: ' + desired_playlist + '\n')
 
+        # Desired playlist has been reversed, we can either delete the old one before proceeding
+        # or perform a quick update
         if reversed_playlist_index != -1:
-            # Playlist has been reversed, we delete the old one before proceeding
             print('The ' + desired_playlist +
-                  ' playlist has been reversed.' +
-                  '\n' +
-                  'Deleting the reverse and creating a new one now.')
+                  ' playlist has been reversed.')
 
-            # If both playlists exist already, see how far we can iterate through both until we reach a discrepancy
-            iterate_through(mc, desiredID, reversedID)
-            return
-            mc.delete_playlist(reversedID)
+            # Determine whether to do a quick update or not
+            if quick == True:
+                print('performing quick update')
+                quick_update(mc, desiredID, reversedID)
+                return
+            else:
+                print('Performing full update\n' +
+                      'Deleting the old playlist...\n')
+                mc.delete_playlist(reversedID)
 
+        # Desired playlist has not been reversed, create the reverse
         else:
             print('The ' + desired_playlist + ' playlist has not been reversed, creating the reverse now.')
 
-        reversedID = mc.create_playlist(reversed_playlist)
-
-        fullContents = mc.get_all_user_playlist_contents()
-        for n in fullContents:
-            if n['name'] == desired_playlist:
-                trackDict = n['tracks']
-                numSongs = len(trackDict)
-                while numSongs > 0:
-                    numSongs -= 1
-                    dicto = trackDict[numSongs]
-                    if 'track' in dicto:
-                        subDict = dicto['track']
-                        print(str(numSongs+1) + ' - ' + subDict['title'])
-                        mc.add_songs_to_playlist(reversedID,subDict['storeId'])
-                    else:
-                        print('\n' +
-                              'Could not add track no. %d the usual way, trying a backup method'
-                              % (numSongs+1))
-                        if 'trackId' in dicto:
-                            mc.add_songs_to_playlist(reversedID,dicto['trackId'])
-                            # Ths print is only here to find a way to print the song name
-                            print('Backup method worked! Song no. %d added successfully.'
-                                  % (numSongs+1))
-                        else:
-                            print('That didn\'t work either :(')
-                        print()
-
+        # If we have got this far, the reversed playlist doesn't exist
+        print('Generating reversed song list...')
+        reversedID, id_list = create_new(mc, desired_playlist)
+        print('Adding songs to the playlist...')
+        mc.add_songs_to_playlist(reversedID, id_list)
+        print('Done!')
+            
+    # No such playlist exists
     else:
-        # No such playlist exists
         print('No playlist by the name of ' + desired_playlist +
               ' found. Did you spell it correctly? A reminder here that the playlist name is case sensetive.')
 
+
+        
 
 '''
 This function iterates forward through the original playlist and backward
 through the reversed playlist, searching for matches
 '''
-def iterate_through(mc, desiredID, reversedID):
+def quick_update(mc, desiredID, reversedID):
     # Get full contents
-    fullContents = mc.get_all_user_playlist_contents()
+    full_contents = mc.get_all_user_playlist_contents()
 
     # Extract the correct dictionaries
-    for n in fullContents:
+    for n in full_contents:
         if n['id'] == desiredID:
             desired_dict = n['tracks']
         elif n['id'] == reversedID:
             reversed_dict = n['tracks']
 
-    playlist_length = len(desired_dict)
-    for i in range(playlist_length):
-        sub_desired_dict = desired_dict[i]
-        sub_reversed_dict = reversed_dict[-i-1]
-        if 'track' not in sub_desired_dict and sub_desired_dict['trackId'] == sub_reversed_dict['trackId']:
-            print('Matching trackIds (i.e. less detailed entry) for track no. ' + str(i))
-            continue
-        elif sub_desired_dict['track']['storeId'] == sub_reversed_dict['track']['storeId']:
-            print('Matching storeIds (i.e. more detailed entry) for track no. ' + str(i))
-            continue
-        elif (elsewhere_in_playlist(reversed_dict, sub_desired_dict) == True or
-              elsewhere_in_playlist(desired_dict, sub_reversed_dict) == True):
-            # No match found, check if the song is elsehwere in the reversed playlist
-            print('Found track somewhere else in playlist')
-        else:
-            # Delete the remainder of the reversed playlist by adding the entry IDs 
-            
+    # First we must check if it is necessary to delete any entries
+    songs_to_delete = []
+    for sub_reversed_dict in reversed_dict:
+        if is_song_in_playlist(desired_dict, sub_reversed_dict) == False:
+            songs_to_delete.append(sub_reversed_dict['id'])
+    if songs_to_delete != []:
+        mc.remove_entries_from_playlist(songs_to_delete)
+    print('Deleting the following songs: ')
+    print(songs_to_delete)
+
+    # Now we find any songs that are in the desired playlist but are not in the reversed
+    songs_to_add = []
+    for sub_desired_dict in desired_dict:
+        if is_song_in_playlist(reversed_dict, sub_desired_dict) == False:
+            if 'track' in sub_desired_dict:
+                songs_to_add.append(sub_desired_dict['track']['storeId'])
+            else:
+                songs_to_add.append(sub_desired_dict['trackId'])
+    if songs_to_add != []:
+        mc.add_songs_to_playlist(reversedID, songs_to_add)
+    print('Adding the following songs: ')
+    print(songs_to_add)
+        
 
 
+        
 '''
-Determine whether a given song is elsehwere in a playlist
+Determine whether a given playlist contains a given song
 '''
-def elsewhere_in_playlist(reversed_dict, sub_desired_dict):
-    if 'track' in sub_desired_dict:
-        for sub_reversed_dict in reversed_dict:
-            if 'track' not in sub_reversed_dict:
+def is_song_in_playlist(playlist_dict, song_dict):
+    # If we have lots of song detail
+    if 'track' in song_dict:
+        for sub_playlist_dict in playlist_dict:
+            if 'track' not in sub_playlist_dict:
                 continue
-            elif sub_reversed_dict['track']['storeId'] == sub_desired_dict['track']['storeId']:
+            elif sub_playlist_dict['track']['storeId'] == song_dict['track']['storeId']:
                 return True
+
+    # Otherwise we must have only a small amount of detail
     else:
-        for sub_reversed_dict in reversed_dict:
-            if 'track' in sub_reversed_dict:
+        for sub_playlist_dict in playlist_dict:
+            if 'track' in sub_playlist_dict:
                 continue
-            elif sub_reversed_dict['trackId'] == sub_desired_dict['trackId']:
+            elif sub_playlist_dict['trackId'] == song_dict['trackId']:
                 return True
 
     # Return false if no match found
     return False
+
+
+
+
+
+'''
+Function to create a new playlist and populate it with the songs in reverse order
+'''
+def create_new(mc, desired_playlist):
+    # Create the new playlist and a list to store song ids to add to it
+    reversed_playlist = desired_playlist + 'REVERSED'
+    reversedID = mc.create_playlist(reversed_playlist)
+    id_list = []
+    
+    # Find the appropriate playlist dictionary
+    full_contents = mc.get_all_user_playlist_contents()
+    for n in full_contents:
+        if n['name'] == desired_playlist:
+            trackDict = n['tracks']
+            break
+    
+    # Begin looping
+    numSongs = len(trackDict)
+    while numSongs > 0:
+        numSongs -= 1
+        dicto = trackDict[numSongs]
+        if 'track' in dicto:
+            subDict = dicto['track']
+            print(str(numSongs+1) + ' - ' + subDict['title'])
+            id_list.append(subDict['storeId'])
+        else:
+            print('\n' +
+                  'Could not add track no. %d the usual way, trying a backup method'
+                  % (numSongs+1))
+            if 'trackId' in dicto:
+                id_list.append(dicto['trackId'])
+                # Ths print is only here to find a way to print the song name
+                print('Backup method worked! Song no. %d added successfully.\n'
+                      % (numSongs+1))
+            else:
+                print('That didn\'t work either :(\n')
+
+    # Return the playlist id and list of song ids to call the add function once
+    return reversedID, id_list
+
+
+
+
                 
 
         
@@ -220,7 +267,8 @@ def elsewhere_in_playlist(reversed_dict, sub_desired_dict):
 If this script is run by itself, check for the -r flag
 '''
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Flags for auto repeat')
-    parser.add_argument('--repeat', '-r', action='store_true') # action='store_true' => default false
+    parser = argparse.ArgumentParser(description = 'Flags for auto repeat and quick update')
+    parser.add_argument('--repeat', '-r', action = 'store_true') # action='store_true' => default false
+    parser.add_argument('--quick', '-q', action = 'store_true')
     args = parser.parse_args()
-    reverseplaylist(repeat = args.repeat)
+    reverseplaylist(repeat = args.repeat, quick = args.quick)

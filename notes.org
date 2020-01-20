@@ -1,3 +1,8 @@
 * TODOs
-** TODO Write sub function to determine whether song is somehwere else in the playlist if no match
-** 
+** TODO add another flag for a full delete and recreate
+** TODO make recreate a separate function
+*** TODO This function should only produce a list of ids, which we will pass to the add entries to playlist function
+** TODO Make a quick function that checks if it is safe to perform a quick update
+*** TODO IF NOT SAFE: delete any songs not present in original,then add others
+**** TODO This can be done by looping through the reversed playlist and adding songs not in the original playlist to a delete_list
+*** TODO IF SAFE: add remaining songs to list, call add songs
